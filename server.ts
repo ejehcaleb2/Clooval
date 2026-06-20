@@ -1,6 +1,6 @@
 import "dotenv/config";
 import express from "express";
-import path from "path";
+import cors from "cors";
 import fs from "fs";
 import pg from "pg";
 import webpush from "web-push";
@@ -9,7 +9,9 @@ import bcrypt from "bcryptjs";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import crypto from "crypto";
-import { createServer as createViteServer } from "vite";
+// Note: Vite server and static asset serving have been removed so
+// frontend can be deployed independently (Vercel). Frontend assets
+// are built to `dist-frontend` and served by the frontend host.
 import { Request, Provider, Notification, User, RequestStatus, PriorityLevel, RequestCategory, ActivityLog } from "./src/types";
 import { sendVerificationEmail, sendPasswordResetEmail } from "./src/services/emailService";
 import { generateEmailToken, generatePasswordResetToken, confirmEmailToken } from "./src/services/tokenService";
@@ -1737,27 +1739,26 @@ async function startServer() {
     }
   });
 
-  // REST API: Serve Service Worker
-  app.get("/sw.js", (req, res) => {
-    res.setHeader("Content-Type", "application/javascript");
-    res.sendFile(path.join(process.cwd(), "public", "sw.js"));
-  });
+  // NOTE: Static file serving and Vite middleware removed.
+  // The frontend is deployed separately (Vercel) and will serve
+  // the built frontend assets. The backend only exposes API routes.
 
-  // Vite development vs production asset server
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    // Support wildcard page routing for Single Page App
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
-  }
+  // Add CORS to allow Vercel frontend and local Vite dev server
+  const allowedOrigins = [
+    "http://localhost:5173",
+    process.env.FRONTEND_URL,
+  ].filter(Boolean);
+  app.use(
+    cors({ origin: (origin, cb) => {
+      if (!origin) return cb(null, true);
+      return allowedOrigins.indexOf(origin) !== -1 ? cb(null, true) : cb(new Error("Not allowed by CORS"));
+    }, credentials: true })
+  );
+
+  // Final fallback: return 404 JSON for any non-API route
+  app.use((req, res) => {
+    res.status(404).json({ error: "Not Found" });
+  });
 
   const server = app.listen(PORT, "0.0.0.0", () => {
     console.log(`Cloova Express Server booted on port ${PORT}`);
