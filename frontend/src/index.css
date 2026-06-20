@@ -1,0 +1,100 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,400..700;1,400..700&display=swap");
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  color-scheme: light only;
+}
+
+html {
+  color-scheme: light only;
+}
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-serif: "Playfair Display", Georgia, Cambria, "Times New Roman", Times, serif;
+}
+
+/* Base modifications for the Cloova Aesthetic */
+body {
+  font-family: var(--font-sans);
+  background-color: #FFFFFF;
+  color: #111111;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+input,
+textarea,
+select {
+  color: #111111;
+}
+
+input::placeholder,
+textarea::placeholder,
+select::placeholder {
+  color: #9CA3AF;
+  opacity: 0.85;
+}
+
+option {
+  color: #111111;
+}
+
+
+/* Custom Scrollbar for elegant desks */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F7F7F5;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #E5E5E3;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #999999;
+}
+
+/* Keyframes for sliding-up / fading alerts */
+@keyframes slideUp {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Pulse animation for premium skeletons */
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: .5;
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 1.5s ease-in-out infinite;
+}
+
+/* Ensure outline focus states meet compliance precisely */
+*:focus-visible {
+  outline: 2px solid #111111;
+  outline-offset: 2px;
+}

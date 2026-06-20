@@ -9,7 +9,7 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import crypto from "crypto";
 import { createServer as createViteServer } from "vite";
-import { Request, Provider, Notification, User, RequestStatus, PriorityLevel, RequestCategory, ActivityLog } from "./src/types";
+import { Request, Provider, Notification, User, RequestStatus, PriorityLevel, RequestCategory, ActivityLog } from "../frontend/src/types";
 
 // Load environment variables from .env
 dotenv.config();
@@ -164,6 +164,7 @@ function mapRequest(row: any): Request {
     category: row.category as RequestCategory,
     description: row.description,
     photos: row.photos || [],
+    issues: row.issues || [],
     priority: row.priority as PriorityLevel,
     additionalNotes: row.additional_notes || undefined,
     status: row.status as RequestStatus,
@@ -405,9 +406,35 @@ async function startServer() {
       }
 
       if (requests && Array.isArray(requests)) {
+        const providerCache = new Map<string, boolean>();
+        const userCache = new Map<string, boolean>();
+
+        const providerExists = async (providerId: string | undefined) => {
+          if (!providerId) return false;
+          if (providerCache.has(providerId)) return providerCache.get(providerId)!;
+          const providerCheck = await client.query("SELECT id FROM providers WHERE id = $1", [providerId]);
+          const exists = providerCheck.rows.length > 0;
+          providerCache.set(providerId, exists);
+          return exists;
+        };
+
+        const userExists = async (userId: string | undefined) => {
+          if (!userId) return false;
+          if (userCache.has(userId)) return userCache.get(userId)!;
+          const userCheck = await client.query("SELECT id FROM users WHERE id = $1", [userId]);
+          const exists = userCheck.rows.length > 0;
+          userCache.set(userId, exists);
+          return exists;
+        };
+
         for (const r of requests) {
           if (r && r.id) {
             const checkReq = await client.query("SELECT * FROM requests WHERE id = $1", [r.id]);
+            const validProviderId = await providerExists(r.providerId);
+            const providerIdToStore = validProviderId ? r.providerId : null;
+            const validStudentId = await userExists(r.studentId);
+            const studentIdToStore = validStudentId ? r.studentId : null;
+
             if (checkReq.rows.length === 0) {
               const insertReqQuery = `
                 INSERT INTO requests (
@@ -423,10 +450,10 @@ async function startServer() {
               const hashInput = `${r.studentId}|${r.category}|${normalizedDescription}|${photosArr.length}`;
               const requestHash = crypto.createHash("sha256").update(hashInput).digest("hex");
               await client.query(insertReqQuery, [
-                r.id, r.studentId, r.studentName, r.studentEmail, r.studentPhone, r.category, r.description, photosArr, requestHash,
+                r.id, studentIdToStore, r.studentName, r.studentEmail, r.studentPhone, r.category, r.description, photosArr, requestHash,
                 r.priority || "normal", r.additionalNotes, r.status || "submitted", r.providerCost, r.serviceCharge, r.totalCost,
                 r.isQuoteAccepted || false, r.depositPaid || false, r.finalPaid || false, r.readyNotes, r.operatorNotes, r.internalNotes,
-                r.providerId, r.providerTranslation, r.cancelReason, cAt
+                providerIdToStore, r.providerTranslation, r.cancelReason, cAt
               ]);
             } else {
               const currentOnServer = checkReq.rows[0];
@@ -467,7 +494,7 @@ async function startServer() {
                   r.readyNotes ?? currentOnServer.ready_notes,
                   r.operatorNotes ?? currentOnServer.operator_notes,
                   r.internalNotes ?? currentOnServer.internal_notes,
-                  r.providerId ?? currentOnServer.provider_id,
+                  providerIdToStore ?? currentOnServer.provider_id,
                   r.providerTranslation ?? currentOnServer.provider_translation,
                   r.cancelReason ?? currentOnServer.cancel_reason
                 ]);
@@ -478,9 +505,23 @@ async function startServer() {
       }
 
       if (notifications && Array.isArray(notifications)) {
+        const requestCache = new Map<string, boolean>();
+
+        const requestExists = async (requestId: string | undefined) => {
+          if (!requestId) return false;
+          if (requestCache.has(requestId)) return requestCache.get(requestId)!;
+          const requestCheck = await client.query("SELECT id FROM requests WHERE id = $1", [requestId]);
+          const exists = requestCheck.rows.length > 0;
+          requestCache.set(requestId, exists);
+          return exists;
+        };
+
         for (const n of notifications) {
           if (n && n.id) {
             const checkNotif = await client.query("SELECT * FROM notifications WHERE id = $1", [n.id]);
+            const validRequestId = await requestExists(n.requestId);
+            const requestIdToStore = validRequestId ? n.requestId : null;
+
             if (checkNotif.rows.length === 0) {
               const insertNotifQuery = `
                 INSERT INTO notifications (id, student_id, title, body, is_read, request_id, amount, created_at)
@@ -488,7 +529,7 @@ async function startServer() {
               `;
               const cAt = n.createdAt ? new Date(n.createdAt) : new Date();
               await client.query(insertNotifQuery, [
-                n.id, n.studentId, n.title, n.body, n.isRead || false, n.requestId, n.amount, cAt
+                n.id, n.studentId, n.title, n.body, n.isRead || false, requestIdToStore, n.amount, cAt
               ]);
             } else {
               const existingNotif = checkNotif.rows[0];
@@ -1520,21 +1561,25 @@ async function startServer() {
     }
   });
 
-  // REST API: Serve Service Worker
+  const frontendRoot = path.join(process.cwd(), "frontend");
+  const frontendPublic = path.join(frontendRoot, "public");
+
+  // REST API: Serve Service Worker from the frontend public folder
   app.get("/sw.js", (req, res) => {
     res.setHeader("Content-Type", "application/javascript");
-    res.sendFile(path.join(process.cwd(), "public", "sw.js"));
+    res.sendFile(path.join(frontendPublic, "sw.js"));
   });
 
   // Vite development vs production asset server
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
+      root: frontendRoot,
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), "dist");
+    const distPath = path.join(process.cwd(), "dist-frontend");
     app.use(express.static(distPath));
     // Support wildcard page routing for Single Page App
     app.get("*", (req, res) => {
