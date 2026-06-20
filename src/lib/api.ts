@@ -7,10 +7,8 @@ import axios from "axios";
 import { useAuthStore } from "./store";
 
 // Central Axios Client
-const API_BASE = (import.meta.env.VITE_API_URL as string) || "http://localhost:3000";
-
 export const api = axios.create({
-  baseURL: `${API_BASE}/api`,
+  baseURL: "/api",
   headers: {
     "Content-Type": "application/json",
   },

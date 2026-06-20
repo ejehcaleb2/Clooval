@@ -1,21 +1,18 @@
-import "dotenv/config";
 import express from "express";
-import cors from "cors";
+import path from "path";
 import fs from "fs";
+import dotenv from "dotenv";
 import pg from "pg";
 import webpush from "web-push";
 import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import crypto from "crypto";
-// Note: Vite server and static asset serving have been removed so
-// frontend can be deployed independently (Vercel). Frontend assets
-// are built to `dist-frontend` and served by the frontend host.
+import { createServer as createViteServer } from "vite";
 import { Request, Provider, Notification, User, RequestStatus, PriorityLevel, RequestCategory, ActivityLog } from "./src/types";
-import { sendVerificationEmail, sendPasswordResetEmail } from "./src/services/emailService";
-import { generateEmailToken, generatePasswordResetToken, confirmEmailToken } from "./src/services/tokenService";
-import { hashPassword, comparePasswords, isHash } from "./src/services/passwordService";
+
+// Load environment variables from .env
+dotenv.config();
 
 // Web Push Setup: Initialize VAPID keys for push notifications
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || undefined;
@@ -67,33 +64,6 @@ async function initializePushSubscriptionsTable() {
     console.log("Push subscriptions table initialized");
   } catch (error) {
     console.error("Failed to initialize push subscriptions table:", error);
-  }
-}
-
-// Ensure request table supports the guided flow fields for brand/model/issues and duplicate hash detection
-async function ensureRequestColumns() {
-  try {
-    await pool.query(`
-      ALTER TABLE requests ADD COLUMN IF NOT EXISTS request_hash TEXT;
-      ALTER TABLE requests ADD COLUMN IF NOT EXISTS brand TEXT;
-      ALTER TABLE requests ADD COLUMN IF NOT EXISTS model TEXT;
-      ALTER TABLE requests ADD COLUMN IF NOT EXISTS accessory_type TEXT;
-      ALTER TABLE requests ADD COLUMN IF NOT EXISTS issues TEXT[];
-      ALTER TABLE requests ADD COLUMN IF NOT EXISTS custom_issue TEXT;
-      CREATE INDEX IF NOT EXISTS idx_requests_request_hash ON requests(request_hash);
-    `);
-    console.log("Request table columns ensured");
-  } catch (error) {
-    console.error("Failed to ensure request columns:", error);
-  }
-}
-
-async function ensureUserVerificationColumn() {
-  try {
-    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE;`);
-    console.log("User verification column ensured");
-  } catch (error) {
-    console.error("Failed to ensure user verification column:", error);
   }
 }
 
@@ -168,7 +138,6 @@ function mapUser(row: any): User {
     notificationEmail: row.notification_email,
     notificationSMS: row.notification_sms,
     notificationInApp: row.notification_in_app,
-    isVerified: row.is_verified || false,
     isSuspended: row.is_suspended
   } as any;
 }
@@ -192,11 +161,6 @@ function mapRequest(row: any): Request {
     studentName: row.student_name,
     studentEmail: row.student_email,
     studentPhone: row.student_phone || undefined,
-    brand: row.brand || undefined,
-    model: row.model || undefined,
-    accessoryType: row.accessory_type || undefined,
-    issues: row.issues || [],
-    customIssue: row.custom_issue || undefined,
     category: row.category as RequestCategory,
     description: row.description,
     photos: row.photos || [],
@@ -283,9 +247,7 @@ async function startServer() {
   const requestedPort = Number(process.env.PORT);
   const PORT = Number.isInteger(requestedPort) && requestedPort > 0 ? requestedPort : 3000;
 
-  // Initialize database tables and guided request columns on startup
-  await ensureRequestColumns();
-  await ensureUserVerificationColumn();
+  // Initialize database tables on startup
   await initializePushSubscriptionsTable();
 
   app.use(express.json({ limit: "50mb" }));
@@ -331,13 +293,12 @@ async function startServer() {
       const isFirstAdmin = lowerEmail === "admin@cloova.com" || lowerEmail.startsWith("caleb.admin");
       const generatedStudentId = `ALU-2026-${Math.floor(100 + Math.random() * 900)}`;
       const newUserId = "user-" + Math.random().toString(36).substring(2, 11);
-      const passwordHash = await hashPassword(password);
 
       const insertQuery = `
         INSERT INTO users (
           id, name, email, student_id, role, phone, nationality, programme_of_study, resident, 
-          password_hash, is_verified, is_suspended, notification_email, notification_sms, notification_in_app, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false, false, true, true, true, NOW())
+          password_hash, is_suspended, notification_email, notification_sms, notification_in_app, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false, true, true, true, NOW())
         RETURNING *
       `;
       const values = [
@@ -350,7 +311,7 @@ async function startServer() {
         nationality || null,
         programmeOfStudy || null,
         resident,
-        passwordHash,
+        password
       ];
 
       const userRes = await client.query(insertQuery, values);
@@ -367,11 +328,6 @@ async function startServer() {
       );
 
       await client.query("COMMIT");
-
-      const verificationToken = generateEmailToken(lowerEmail);
-      void sendVerificationEmail(lowerEmail, name, verificationToken).catch((error) =>
-        console.error("Verification email async send failed:", error)
-      );
 
       const token = JWT_SECRET
         ? jwt.sign({ id: newUser.id, email: newUser.email, name: newUser.name, role: newUser.role }, JWT_SECRET, { expiresIn: '7d' })
@@ -399,21 +355,8 @@ async function startServer() {
       }
 
       const existing = userRes.rows[0];
-      let passwordMatch = false;
-
-      if (typeof existing.password_hash === "string" && existing.password_hash.length > 0) {
-        passwordMatch = isHash(existing.password_hash)
-          ? await comparePasswords(password, existing.password_hash)
-          : existing.password_hash === password;
-      }
-
-      if (!passwordMatch) {
+      if (existing.password_hash !== password) {
         return res.status(401).json({ error: "Invalid email or password" });
-      }
-
-      if (!isHash(existing.password_hash) && existing.password_hash === password) {
-        const upgradedHash = await hashPassword(password);
-        await pool.query("UPDATE users SET password_hash = $1 WHERE id = $2", [upgradedHash, existing.id]);
       }
 
       if (existing.is_suspended) {
@@ -433,114 +376,6 @@ async function startServer() {
     }
   });
 
-  app.post("/api/auth/resend-verification", async (req, res) => {
-    const email = String(req.body?.email || "").toLowerCase();
-    if (email) {
-      try {
-        const userRes = await pool.query("SELECT * FROM users WHERE LOWER(email) = $1", [email]);
-        if (userRes.rows.length > 0) {
-          const user = userRes.rows[0];
-          if (!user.is_verified) {
-            const token = generateEmailToken(email);
-            void sendVerificationEmail(email, user.name || "", token).catch((error) =>
-              console.error("Resend verification email failed:", error)
-            );
-          }
-        }
-      } catch (error) {
-        console.error("Resend verification error:", error);
-      }
-    }
-
-    return res.json({
-      success: true,
-      message: "If an account exists with that email, a verification link has been sent.",
-    });
-  });
-
-  app.post("/api/auth/forgot-password", async (req, res) => {
-    const email = String(req.body?.email || "").toLowerCase();
-    if (email) {
-      try {
-        const userRes = await pool.query("SELECT * FROM users WHERE LOWER(email) = $1", [email]);
-        if (userRes.rows.length > 0) {
-          const user = userRes.rows[0];
-          const token = generatePasswordResetToken(email);
-          void sendPasswordResetEmail(email, user.name || "", token).catch((error) =>
-            console.error("Password reset email failed:", error)
-          );
-        }
-      } catch (error) {
-        console.error("Forgot password error:", error);
-      }
-    }
-
-    return res.json({
-      success: true,
-      message: "If an account exists with that email, a reset link has been sent.",
-    });
-  });
-
-  app.get("/api/auth/verify-email", async (req, res) => {
-    const token = String(req.query?.token || "");
-    if (!token) {
-      return res.status(400).json({ error: "This verification link has expired or is invalid. Please request a new one." });
-    }
-
-    const email = confirmEmailToken(token, "email-verify");
-    if (!email) {
-      return res.status(400).json({ error: "This verification link has expired or is invalid. Please request a new one." });
-    }
-
-    try {
-      const userRes = await pool.query("SELECT * FROM users WHERE LOWER(email) = $1", [email.toLowerCase()]);
-      if (userRes.rows.length === 0) {
-        return res.status(400).json({ error: "This verification link has expired or is invalid. Please request a new one." });
-      }
-
-      const user = userRes.rows[0];
-      if (!user.is_verified) {
-        await pool.query("UPDATE users SET is_verified = true WHERE id = $1", [user.id]);
-      }
-
-      return res.json({ success: true, message: "Email verified successfully." });
-    } catch (error: any) {
-      console.error("Verify email error:", error);
-      return res.status(500).json({ error: "Unable to verify email at this time." });
-    }
-  });
-
-  app.post("/api/auth/reset-password", async (req, res) => {
-    const { token, new_password, confirm_password } = req.body;
-    if (!token || !new_password || !confirm_password) {
-      return res.status(400).json({ error: "Token and new password are required." });
-    }
-
-    if (new_password !== confirm_password) {
-      return res.status(400).json({ error: "Passwords do not match." });
-    }
-
-    const email = confirmEmailToken(token, "password-reset");
-    if (!email) {
-      return res.status(400).json({ error: "This password reset link has expired or is invalid. Please request a new one." });
-    }
-
-    try {
-      const userRes = await pool.query("SELECT * FROM users WHERE LOWER(email) = $1", [email.toLowerCase()]);
-      if (userRes.rows.length === 0) {
-        return res.status(400).json({ error: "This password reset link has expired or is invalid. Please request a new one." });
-      }
-
-      const hashedPassword = await hashPassword(new_password);
-      await pool.query("UPDATE users SET password_hash = $1 WHERE id = $2", [hashedPassword, userRes.rows[0].id]);
-
-      return res.json({ success: true, message: "Password updated successfully." });
-    } catch (error: any) {
-      console.error("Reset password error:", error);
-      return res.status(500).json({ error: "Unable to reset password at this time." });
-    }
-  });
-
   app.post("/api/auth/sync", async (req, res) => {
     const { users, requests, notifications } = req.body;
     const client = await pool.connect();
@@ -556,8 +391,8 @@ async function startServer() {
               const insertUserQuery = `
                 INSERT INTO users (
                   id, name, email, student_id, role, phone, nationality, programme_of_study, resident, 
-                  password_hash, is_verified, is_suspended, notification_email, notification_sms, notification_in_app, created_at
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false, false, true, true, true, NOW())
+                  password_hash, is_suspended, notification_email, notification_sms, notification_in_app, created_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false, true, true, true, NOW())
                 ON CONFLICT (email) DO NOTHING
               `;
               await client.query(insertUserQuery, [
@@ -576,11 +411,11 @@ async function startServer() {
             if (checkReq.rows.length === 0) {
               const insertReqQuery = `
                 INSERT INTO requests (
-                  id, student_id, student_name, student_email, student_phone, category, brand, model, accessory_type, issues, custom_issue,
-                  description, photos, request_hash, priority, additional_notes, status, provider_cost, service_charge, total_cost, 
+                  id, student_id, student_name, student_email, student_phone, category, description, photos, request_hash,
+                  priority, additional_notes, status, provider_cost, service_charge, total_cost, 
                   is_quote_accepted, deposit_paid, final_paid, ready_notes, operator_notes, internal_notes, 
                   provider_id, provider_translation, cancel_reason, created_at
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30)
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
               `;
               const photosArr = Array.isArray(r.photos) ? r.photos : [];
               const cAt = r.createdAt ? new Date(r.createdAt) : new Date();
@@ -588,9 +423,7 @@ async function startServer() {
               const hashInput = `${r.studentId}|${r.category}|${normalizedDescription}|${photosArr.length}`;
               const requestHash = crypto.createHash("sha256").update(hashInput).digest("hex");
               await client.query(insertReqQuery, [
-                r.id, r.studentId, r.studentName, r.studentEmail, r.studentPhone, r.category,
-                r.brand || null, r.model || null, r.accessoryType || null, Array.isArray(r.issues) ? r.issues : [], r.customIssue || null,
-                r.description, photosArr, requestHash,
+                r.id, r.studentId, r.studentName, r.studentEmail, r.studentPhone, r.category, r.description, photosArr, requestHash,
                 r.priority || "normal", r.additionalNotes, r.status || "submitted", r.providerCost, r.serviceCharge, r.totalCost,
                 r.isQuoteAccepted || false, r.depositPaid || false, r.finalPaid || false, r.readyNotes, r.operatorNotes, r.internalNotes,
                 r.providerId, r.providerTranslation, r.cancelReason, cAt
@@ -849,53 +682,6 @@ async function startServer() {
     }
   });
 
-  // REST API: Permanently delete a request (Admin only)
-  app.delete("/api/requests/:id", async (req, res) => {
-    const user = getAuthenticatedUser(req);
-    if (!user) {
-      return res.status(401).json({ error: "Unauthorized access" });
-    }
-    if (user.role !== "admin") {
-      return res.status(403).json({ error: "Forbidden: Admins only" });
-    }
-
-    const id = req.params.id;
-    const client = await pool.connect();
-    try {
-      await client.query("BEGIN");
-
-      const check = await client.query("SELECT * FROM requests WHERE id = $1", [id]);
-      if (check.rows.length === 0) {
-        await client.query("ROLLBACK");
-        return res.status(404).json({ error: "Request not found" });
-      }
-
-      // Remove notifications and activity logs tied to this request first
-      await client.query("DELETE FROM notifications WHERE request_id = $1", [id]);
-      await client.query("DELETE FROM activities WHERE request_id = $1", [id]);
-
-      // Delete the request row
-      await client.query("DELETE FROM requests WHERE id = $1", [id]);
-
-      // Insert an audit log that the admin permanently removed the record
-      const actId = "act-" + Math.random().toString(36).substring(2, 11);
-      await client.query(
-        `INSERT INTO activities (id, user_id, user_name, user_email, action, details, request_id, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
-        [actId, user.id, user.name, user.email, "Permanent Delete", `Administrator permanently deleted request #${id}`, id]
-      );
-
-      await client.query("COMMIT");
-      res.json({ success: true });
-    } catch (err: any) {
-      await client.query("ROLLBACK");
-      console.error("Delete request error:", err);
-      res.status(500).json({ error: "Internal server error: " + err.message });
-    } finally {
-      client.release();
-    }
-  });
-
   // REST API: New Request
   app.post("/api/requests", /* rate limiter */ createRequestLimiter, async (req, res) => {
     const user = getAuthenticatedUser(req);
@@ -903,7 +689,7 @@ async function startServer() {
       return res.status(401).json({ error: "Unauthorized access" });
     }
 
-    const { category, description, photos, priority, additionalNotes, studentPhone, behalfStudentId, brand, model, accessoryType, issues, customIssue } = req.body;
+    const { category, description, photos, priority, additionalNotes, studentPhone, behalfStudentId } = req.body;
     if (!category || !description) {
       return res.status(400).json({ error: "Category and description are required" });
     }
@@ -942,18 +728,18 @@ async function startServer() {
       let values: any[] | undefined;
       insertQuery = `
         INSERT INTO requests (
-          id, student_id, student_name, student_email, student_phone, category, brand, model, accessory_type, issues, custom_issue,
-          description, photos, request_hash, priority, additional_notes, status, provider_cost, service_charge, total_cost, 
+          id, student_id, student_name, student_email, student_phone, category, description, photos, 
+          request_hash,
+          priority, additional_notes, status, provider_cost, service_charge, total_cost, 
           is_quote_accepted, deposit_paid, final_paid, ready_notes, operator_notes, internal_notes, 
           provider_id, provider_translation, cancel_reason, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 'submitted', $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, NOW())
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'submitted', $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, NOW())
         RETURNING *
       `;
       const photosArr = Array.isArray(photos) ? photos : [];
-      const issueValues = Array.isArray(issues) ? issues : [];
       // Compute request hash to prevent exact duplicate submissions
       const normalizedDescription = String(description).trim().replace(/\s+/g, " ").toLowerCase();
-      const hashInput = `${targetStudentId}|${category}|${brand || ""}|${model || ""}|${accessoryType || ""}|${issueValues.join(",")}|${normalizedDescription}|${photosArr.length}`;
+      const hashInput = `${targetStudentId}|${category}|${normalizedDescription}|${photosArr.length}`;
       const requestHash = crypto.createHash("sha256").update(hashInput).digest("hex");
       values = [
         uniqueId,
@@ -962,11 +748,6 @@ async function startServer() {
         targetStudentEmail,
         targetStudentPhone,
         category,
-        brand || null,
-        model || null,
-        accessoryType || null,
-        issueValues,
-        customIssue || null,
         description,
         photosArr,
         requestHash,
@@ -1739,26 +1520,27 @@ async function startServer() {
     }
   });
 
-  // NOTE: Static file serving and Vite middleware removed.
-  // The frontend is deployed separately (Vercel) and will serve
-  // the built frontend assets. The backend only exposes API routes.
-
-  // Add CORS to allow Vercel frontend and local Vite dev server
-  const allowedOrigins = [
-    "http://localhost:5173",
-    process.env.FRONTEND_URL,
-  ].filter(Boolean);
-  app.use(
-    cors({ origin: (origin, cb) => {
-      if (!origin) return cb(null, true);
-      return allowedOrigins.indexOf(origin) !== -1 ? cb(null, true) : cb(new Error("Not allowed by CORS"));
-    }, credentials: true })
-  );
-
-  // Final fallback: return 404 JSON for any non-API route
-  app.use((req, res) => {
-    res.status(404).json({ error: "Not Found" });
+  // REST API: Serve Service Worker
+  app.get("/sw.js", (req, res) => {
+    res.setHeader("Content-Type", "application/javascript");
+    res.sendFile(path.join(process.cwd(), "public", "sw.js"));
   });
+
+  // Vite development vs production asset server
+  if (process.env.NODE_ENV !== "production") {
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+    });
+    app.use(vite.middlewares);
+  } else {
+    const distPath = path.join(process.cwd(), "dist");
+    app.use(express.static(distPath));
+    // Support wildcard page routing for Single Page App
+    app.get("*", (req, res) => {
+      res.sendFile(path.join(distPath, "index.html"));
+    });
+  }
 
   const server = app.listen(PORT, "0.0.0.0", () => {
     console.log(`Cloova Express Server booted on port ${PORT}`);
