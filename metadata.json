@@ -1,0 +1,8 @@
+{
+  "name": "Cloova",
+  "description": "Student repair and service request concierge platform.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

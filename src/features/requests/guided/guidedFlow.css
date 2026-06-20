@@ -1,0 +1,31 @@
+.step-enter-from-right {
+  transform: translateX(20px);
+  opacity: 0;
+}
+
+.step-enter-from-left {
+  transform: translateX(-20px);
+  opacity: 0;
+}
+
+.step-enter-active {
+  transform: translateX(0);
+  opacity: 1;
+  transition: transform 200ms ease-out 40ms, opacity 200ms ease-out 40ms;
+}
+
+.step-exit-to-left {
+  transform: translateX(-20px);
+  opacity: 0;
+  transition: transform 160ms ease-in, opacity 160ms ease-in;
+}
+
+.step-exit-to-right {
+  transform: translateX(20px);
+  opacity: 0;
+  transition: transform 160ms ease-in, opacity 160ms ease-in;
+}
+
+.unified-step-wrapper {
+  min-height: calc(100vh - 130px);
+}

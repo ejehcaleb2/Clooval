@@ -1,0 +1,408 @@
+{
+  "users": {
+    "admin@cloova.com": {
+      "id": "admin-1",
+      "name": "Cloova Admin",
+      "email": "admin@cloova.com",
+      "studentId": "FOUNDER",
+      "role": "admin",
+      "passwordHash": "admin123"
+    },
+    "amara@alustudent.com": {
+      "id": "student-1",
+      "name": "Amara Diop",
+      "email": "amara@alustudent.com",
+      "studentId": "ALU-2025-084",
+      "role": "student",
+      "passwordHash": "student123"
+    },
+    "kwame@alustudent.com": {
+      "id": "student-2",
+      "name": "Kwame Mensah",
+      "email": "kwame@alustudent.com",
+      "studentId": "ALU-2026-119",
+      "role": "student",
+      "passwordHash": "student123"
+    },
+    "c.ejeh@alustudent.com": {
+      "id": "user-rh7lgq04n",
+      "name": "Caleb Ejeh",
+      "email": "c.ejeh@alustudent.com",
+      "studentId": "ALU-2026-220",
+      "role": "student",
+      "phone": "+2349077007934",
+      "nationality": "Nigeria",
+      "programmeOfStudy": "Computer Science",
+      "resident": "Songhai",
+      "passwordHash": "19981235"
+    },
+    "testuser1635@alustudent.com": {
+      "id": "user-r1p5s11hc",
+      "name": "Test User",
+      "email": "testuser1635@alustudent.com",
+      "studentId": "ALU-2026-465",
+      "role": "student",
+      "phone": "123456",
+      "resident": "Maps",
+      "passwordHash": "secret123"
+    },
+    "ejeh@alustudent.com": {
+      "id": "user-6tpuznpar",
+      "name": "Caleb Ejeh",
+      "email": "ejeh@alustudent.com",
+      "studentId": "ALU-2026-510",
+      "role": "student",
+      "phone": "+2349077007934",
+      "nationality": "Nigeria",
+      "resident": "Songhai",
+      "passwordHash": "19981235"
+    }
+  },
+  "providers": [
+    {
+      "id": "prov-1",
+      "name": "Vassen Phone Repairs",
+      "phone": "+230 5231 9904",
+      "specialty": [
+        "phone",
+        "accessories"
+      ],
+      "notes": "Quick service, expert in screen replacement. Located near Port Louis market.",
+      "rating": 5
+    },
+    {
+      "id": "prov-2",
+      "name": "Madame Marie Alterations",
+      "phone": "+230 5742 1109",
+      "specialty": [
+        "clothing"
+      ],
+      "notes": "Local Pamplemousses tailor, great for rapid trouser/dress alterations.",
+      "rating": 4
+    },
+    {
+      "id": "prov-3",
+      "name": "Devendra Shoe Restoration",
+      "phone": "+230 5988 3441",
+      "specialty": [
+        "shoe"
+      ],
+      "notes": "Sole stitching and cleaning expert. Highly reliable, based in Port Louis.",
+      "rating": 5
+    },
+    {
+      "id": "prov-4",
+      "name": "Mauritius PC Doc",
+      "phone": "+230 5493 0087",
+      "specialty": [
+        "laptop"
+      ],
+      "notes": "Diagnostics, battery replacements and logic board reflows.",
+      "rating": 4
+    }
+  ],
+  "requests": [
+    {
+      "id": "REQ-001",
+      "studentId": "student-1",
+      "studentName": "Amara Diop",
+      "studentEmail": "amara@alustudent.com",
+      "studentPhone": "+230 5111 2233",
+      "category": "phone",
+      "description": "My iPhone 13 screen has a major crack on the bottom-left corner from falling off a desk in the study commons. The OLED panel is fine, but the touch digitizer is unresponsive in that lower area.",
+      "photos": [],
+      "priority": "high",
+      "additionalNotes": "I need this for checking my course portals. Really hoping for a quick turnaround.",
+      "status": "quote_sent",
+      "providerCost": 1800,
+      "serviceCharge": 400,
+      "totalCost": 2200,
+      "isQuoteAccepted": false,
+      "depositPaid": false,
+      "finalPaid": false,
+      "operatorNotes": "Consulted Vassen Phone Repairs. Screen replacement is available. I can take it to Port Louis on Wednesday morning if you accept the quote.",
+      "internalNotes": "Vassen quoted 1800 MUR. Let's charge 400 MUR markup for transport/service cost.",
+      "providerId": "prov-1",
+      "providerTranslation": "Changement l'ecran iPhone 13 cassé en bas à gauche. Vitre cassé, tactile pé déconné, LCD correct.",
+      "createdAt": "2026-06-04T09:36:06.697Z"
+    },
+    {
+      "id": "REQ-002",
+      "studentId": "student-1",
+      "studentName": "Amara Diop",
+      "studentEmail": "amara@alustudent.com",
+      "studentPhone": "+230 5111 2233",
+      "category": "shoe",
+      "description": "My Nike Air Force 1 midsoles are fully separating from the upper. Needs solid reglueing and stitching.",
+      "photos": [],
+      "priority": "normal",
+      "additionalNotes": "No absolute rush but these are my primary everyday walking shoes on campus.",
+      "status": "ready_for_collection",
+      "providerCost": 600,
+      "serviceCharge": 200,
+      "totalCost": 800,
+      "isQuoteAccepted": true,
+      "depositPaid": true,
+      "finalPaid": false,
+      "readyNotes": "Ready for pickup at the Cloova drop-off desk (Room 32B). Please bring the balance of 400 MUR (on collection).",
+      "operatorNotes": "Devendra did a stellar job with the heavy duty stitching. Ready for collect!",
+      "internalNotes": "Devendra charged 600. Deposit 400 was paid. Balance is 400 with service charge.",
+      "providerId": "prov-3",
+      "providerTranslation": "Recollé et coudre la semelle Nike Air Force 1 blanche. Solide net.",
+      "createdAt": "2026-05-28T09:36:06.698Z"
+    },
+    {
+      "id": "REQ-003",
+      "studentId": "student-2",
+      "studentName": "Kwame Mensah",
+      "studentEmail": "kwame@alustudent.com",
+      "studentPhone": "+230 5222 8899",
+      "category": "laptop",
+      "description": "My HP Elitebook has a loose USB-C charging port. When plugged in, the LED indicator flickers, and I have to tape the cord at a specific angle to get juice.",
+      "photos": [],
+      "priority": "urgent",
+      "additionalNotes": "Midterms start next Monday. Crucial!",
+      "status": "with_provider",
+      "providerCost": 1200,
+      "serviceCharge": 300,
+      "totalCost": 1500,
+      "isQuoteAccepted": true,
+      "depositPaid": true,
+      "finalPaid": false,
+      "operatorNotes": "We handed the HP laptop to Mauritius PC Doc. They are replacing the inner charging socket board.",
+      "internalNotes": "Operator sent deposit 500 MUR to Mauritius PC Doc already.",
+      "providerId": "prov-4",
+      "providerTranslation": "Remplacement connecteur de charge type-C sur carte mère HP Elitebook.",
+      "createdAt": "2026-06-06T09:36:06.698Z"
+    }
+  ],
+  "notifications": [
+    {
+      "id": "notif-adm-l8qo",
+      "studentId": "admin-1",
+      "title": "Login - Caleb Ejeh",
+      "body": "Signed in from dev/web portal.",
+      "isRead": false,
+      "createdAt": "2026-06-07T11:45:28.425Z"
+    },
+    {
+      "id": "notif-adm-qmir",
+      "studentId": "admin-1",
+      "title": "Login - Caleb Ejeh",
+      "body": "Signed in from dev/web portal.",
+      "isRead": false,
+      "createdAt": "2026-06-07T11:43:33.759Z"
+    },
+    {
+      "id": "notif-adm-xe39",
+      "studentId": "admin-1",
+      "title": "Registration - Caleb Ejeh",
+      "body": "User registered as a student from Songhai residence.",
+      "isRead": false,
+      "createdAt": "2026-06-07T11:31:05.581Z"
+    },
+    {
+      "id": "notif-adm-bh16",
+      "studentId": "admin-1",
+      "title": "Login - Caleb Ejeh",
+      "body": "Signed in from dev/web portal.",
+      "isRead": false,
+      "createdAt": "2026-06-07T11:29:19.311Z"
+    },
+    {
+      "id": "notif-adm-ybh7",
+      "studentId": "admin-1",
+      "title": "Login - Test User",
+      "body": "Signed in from dev/web portal.",
+      "isRead": false,
+      "createdAt": "2026-06-07T11:28:14.579Z"
+    },
+    {
+      "id": "notif-adm-63g3",
+      "studentId": "admin-1",
+      "title": "Registration - Test User",
+      "body": "User registered as a student from Maps residence.",
+      "isRead": false,
+      "createdAt": "2026-06-07T11:28:14.571Z"
+    },
+    {
+      "id": "notif-adm-6xy6",
+      "studentId": "admin-1",
+      "title": "Login - Caleb Ejeh",
+      "body": "Signed in from dev/web portal.",
+      "isRead": false,
+      "createdAt": "2026-06-07T11:20:11.277Z"
+    },
+    {
+      "id": "notif-adm-4j9g",
+      "studentId": "admin-1",
+      "title": "Login - Caleb Ejeh",
+      "body": "Signed in from dev/web portal.",
+      "isRead": false,
+      "createdAt": "2026-06-07T09:39:59.787Z"
+    },
+    {
+      "id": "notif-adm-l2jp",
+      "studentId": "admin-1",
+      "title": "Registration - Caleb Ejeh",
+      "body": "User registered as a student from Songhai residence.",
+      "isRead": false,
+      "createdAt": "2026-06-07T09:39:41.921Z"
+    },
+    {
+      "id": "notif-1",
+      "studentId": "student-1",
+      "title": "Quote Received",
+      "body": "Cloova Support has uploaded a repair quote for your iPhone 13 Screen Repair. Review details to accept.",
+      "isRead": false,
+      "createdAt": "2026-06-06T09:36:06.698Z"
+    },
+    {
+      "id": "notif-2",
+      "studentId": "student-1",
+      "title": "Item Ready for Collection",
+      "body": "Your Nike Air Force 1 shoes are ready for pickup from the Cloova locker drop off.",
+      "isRead": false,
+      "createdAt": "2026-06-07T05:36:06.698Z"
+    }
+  ],
+  "activities": [
+    {
+      "id": "act-59gy4xmou",
+      "userId": "user-rh7lgq04n",
+      "userName": "Caleb Ejeh",
+      "userEmail": "c.ejeh@alustudent.com",
+      "action": "Login",
+      "details": "Signed in from dev/web portal.",
+      "createdAt": "2026-06-07T11:45:28.425Z"
+    },
+    {
+      "id": "act-fygu7m5su",
+      "userId": "admin-1",
+      "userName": "Cloova Admin",
+      "userEmail": "admin@cloova.com",
+      "action": "Login",
+      "details": "Signed in from dev/web portal.",
+      "createdAt": "2026-06-07T11:44:55.179Z"
+    },
+    {
+      "id": "act-posdzez8y",
+      "userId": "user-rh7lgq04n",
+      "userName": "Caleb Ejeh",
+      "userEmail": "c.ejeh@alustudent.com",
+      "action": "Login",
+      "details": "Signed in from dev/web portal.",
+      "createdAt": "2026-06-07T11:43:33.759Z"
+    },
+    {
+      "id": "act-n0sv9iq07",
+      "userId": "user-6tpuznpar",
+      "userName": "Caleb Ejeh",
+      "userEmail": "ejeh@alustudent.com",
+      "action": "Registration",
+      "details": "User registered as a student from Songhai residence.",
+      "createdAt": "2026-06-07T11:31:05.581Z"
+    },
+    {
+      "id": "act-f76owb3lc",
+      "userId": "user-rh7lgq04n",
+      "userName": "Caleb Ejeh",
+      "userEmail": "c.ejeh@alustudent.com",
+      "action": "Login",
+      "details": "Signed in from dev/web portal.",
+      "createdAt": "2026-06-07T11:29:19.311Z"
+    },
+    {
+      "id": "act-tz4b4za91",
+      "userId": "user-r1p5s11hc",
+      "userName": "Test User",
+      "userEmail": "testuser1635@alustudent.com",
+      "action": "Login",
+      "details": "Signed in from dev/web portal.",
+      "createdAt": "2026-06-07T11:28:14.579Z"
+    },
+    {
+      "id": "act-7evn0p73k",
+      "userId": "user-r1p5s11hc",
+      "userName": "Test User",
+      "userEmail": "testuser1635@alustudent.com",
+      "action": "Registration",
+      "details": "User registered as a student from Maps residence.",
+      "createdAt": "2026-06-07T11:28:14.571Z"
+    },
+    {
+      "id": "act-v9w3z453b",
+      "userId": "admin-1",
+      "userName": "Cloova Admin",
+      "userEmail": "admin@cloova.com",
+      "action": "Login",
+      "details": "Signed in from dev/web portal.",
+      "createdAt": "2026-06-07T11:28:07.881Z"
+    },
+    {
+      "id": "act-sylo4chdt",
+      "userId": "admin-1",
+      "userName": "Cloova Admin",
+      "userEmail": "admin@cloova.com",
+      "action": "Login",
+      "details": "Signed in from dev/web portal.",
+      "createdAt": "2026-06-07T11:27:53.845Z"
+    },
+    {
+      "id": "act-ebp4b8cx7",
+      "userId": "user-rh7lgq04n",
+      "userName": "Caleb Ejeh",
+      "userEmail": "c.ejeh@alustudent.com",
+      "action": "Login",
+      "details": "Signed in from dev/web portal.",
+      "createdAt": "2026-06-07T11:20:11.277Z"
+    },
+    {
+      "id": "act-wfz3jnacn",
+      "userId": "user-rh7lgq04n",
+      "userName": "Caleb Ejeh",
+      "userEmail": "c.ejeh@alustudent.com",
+      "action": "Login",
+      "details": "Signed in from dev/web portal.",
+      "createdAt": "2026-06-07T09:39:59.787Z"
+    },
+    {
+      "id": "act-3lo4qjdv4",
+      "userId": "user-rh7lgq04n",
+      "userName": "Caleb Ejeh",
+      "userEmail": "c.ejeh@alustudent.com",
+      "action": "Registration",
+      "details": "User registered as a student from Songhai residence.",
+      "createdAt": "2026-06-07T09:39:41.921Z"
+    },
+    {
+      "id": "act-init-1",
+      "userId": "student-1",
+      "userName": "Amara Diop",
+      "userEmail": "amara@alustudent.com",
+      "action": "Registration",
+      "details": "User registered as a student from Maps residence.",
+      "createdAt": "2026-05-23T09:36:06.698Z"
+    },
+    {
+      "id": "act-init-2",
+      "userId": "student-1",
+      "userName": "Amara Diop",
+      "userEmail": "amara@alustudent.com",
+      "action": "Create Request",
+      "details": "Created a phone repair request: iPhone 13 cracked screen (#REQ-001).",
+      "createdAt": "2026-06-04T09:36:06.698Z",
+      "requestId": "REQ-001"
+    },
+    {
+      "id": "act-init-3",
+      "userId": "student-2",
+      "userName": "Kwame Mensah",
+      "userEmail": "kwame@alustudent.com",
+      "action": "Create Request",
+      "details": "Created a laptop repair request: HP Elitebook loose USB-C port (#REQ-003).",
+      "createdAt": "2026-06-06T09:36:06.698Z",
+      "requestId": "REQ-003"
+    }
+  ]
+}
